@@ -43,7 +43,7 @@ class AutomationMenu
         if (initStep != Automation.InitSteps.BuildMenu) return;
 
         let boltImage = '<img src="assets/images/badges/Bolt.svg" height="20px">';
-        let automationTitle = `${boltImage}Automation${boltImage}`;
+        let automationTitle = `${boltImage}Automation${boltImage}<div class="automationVersion">v${Automation.Version}</div>`;
         this.AutomationButtonsDiv = this.addCategory("automationButtons", automationTitle);
     }
 
@@ -1168,6 +1168,14 @@ class AutomationMenu
                 font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
                 font-size: .875rem;
                 font-weight = 400;
+            }
+
+            .automationVersion
+            {
+                font-size: 11px;
+                color: #cccccc;
+                margin-top: 2px;
+                line-height: 14px;
             }
 
             /****************\

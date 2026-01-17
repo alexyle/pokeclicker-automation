@@ -3,6 +3,9 @@
  */
 class Automation
 {
+    // Automation build/version identifier (shown in menu)
+    static Version = "eb211a4";
+
     // Aliases on the other classes so every calls in the code can use the `Automation.<Alias>` form
     static BattleCafe = AutomationBattleCafe;
     static BattleFrontier = AutomationBattleFrontier;
