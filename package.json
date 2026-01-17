@@ -1,0 +1,7 @@
+{
+  "name": "pokeclicker-automation",
+  "version": "1.0.0",
+  "scripts": {
+    "update-version": "git rev-parse --short HEAD > VERSION"
+  }
+}
