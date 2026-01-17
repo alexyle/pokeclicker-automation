@@ -565,5 +565,4 @@ class AutomationBattleCafe
     }
 
     static __internal__berryFarmWatcher = null;
->>>>>>> 1c0c81a (feat: Add Battle Café berry farming toggle with two-phase completion system)
 }
