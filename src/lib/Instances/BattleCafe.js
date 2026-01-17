@@ -41,6 +41,8 @@ class AutomationBattleCafe
     static __internal__caughtPokemonIndicators = new Map();
     static __internal__pokemonPokerusIndicators = new Map();
     static __internal__battleButtonSelector = '#battleCafeModal button.btn-success';
+    // Berries consumed by Battle Café sweets (EV-reducing set)
+    static __internal__battleCafeBerries = [ BerryType.Pomeg, BerryType.Kelpsy, BerryType.Qualot, BerryType.Hondew, BerryType.Grepa, BerryType.Tamato ];
 
     /**
      * @brief Builds the 'Battle Café' menu panel
@@ -477,36 +479,46 @@ class AutomationBattleCafe
         // Find the next berry that needs to be farmed
         const berryToFarm = this.__internal__getNextBerryToFarm();
 
-        if (berryToFarm !== null)
+        if (berryToFarm === null)
         {
-            // Request this berry to be planted
-            Automation.Farm.ForcePlantBerriesAsked = berryToFarm;
-
-            // Set up a watcher to rotate to the next berry when needed
-            if (!this.__internal__berryFarmWatcher)
-            {
-                this.__internal__berryFarmWatcher = setInterval(function()
-                {
-                    if (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBerryFarm) !== "true")
-                    {
-                        clearInterval(this.__internal__berryFarmWatcher);
-                        this.__internal__berryFarmWatcher = null;
-                        return;
-                    }
-
-                    const nextBerry = this.__internal__getNextBerryToFarm();
-                    if (nextBerry !== null && nextBerry !== Automation.Farm.ForcePlantBerriesAsked)
-                    {
-                        Automation.Farm.ForcePlantBerriesAsked = nextBerry;
-                    }
-                }.bind(this), 30000); // Check every 30 seconds
-            }
-
-            Automation.Notifications.sendNotif(
-                `Now farming ${BerryType[berryToFarm]} berries for Battle Café`,
-                "Battle Café"
-            );
+            // Nothing needed: stop forcing a berry and clear watcher
+            this.__internal__stopRequestingBattleCafeBerries();
+            return;
         }
+
+        // Request this berry to be planted
+        Automation.Farm.ForcePlantBerriesAsked = berryToFarm;
+
+        // Set up a watcher to rotate to the next berry when needed
+        if (!this.__internal__berryFarmWatcher)
+        {
+            this.__internal__berryFarmWatcher = setInterval(function()
+            {
+                if (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBerryFarm) !== "true")
+                {
+                    clearInterval(this.__internal__berryFarmWatcher);
+                    this.__internal__berryFarmWatcher = null;
+                    return;
+                }
+
+                const nextBerry = this.__internal__getNextBerryToFarm();
+                if (nextBerry === null)
+                {
+                    this.__internal__stopRequestingBattleCafeBerries();
+                    return;
+                }
+
+                if (nextBerry !== Automation.Farm.ForcePlantBerriesAsked)
+                {
+                    Automation.Farm.ForcePlantBerriesAsked = nextBerry;
+                }
+            }.bind(this), 30000); // Check every 30 seconds
+        }
+
+        Automation.Notifications.sendNotif(
+            `Now farming ${BerryType[berryToFarm]} berries for Battle Café`,
+            "Battle Café"
+        );
     }
 
     /**
