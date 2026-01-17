@@ -5,7 +5,8 @@ class AutomationBattleCafe
 {
     static Settings = {
                           FeatureEnabled: "BattleCafe-FarmEnabled",
-                          StopOnPokedex: "BattleCafe-StopOnPokedex"
+                          StopOnPokedex: "BattleCafe-StopOnPokedex",
+                          AutoBerryFarm: "BattleCafe-AutoBerryFarm"
                       };
 
     /**
@@ -20,6 +21,7 @@ class AutomationBattleCafe
             // Disable the feature by default
             Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
             Automation.Utils.LocalStorage.setDefaultValue(this.Settings.StopOnPokedex, false);
+            Automation.Utils.LocalStorage.setDefaultValue(this.Settings.AutoBerryFarm, false);
 
             this.__internal__buildMenu();
         }
@@ -68,6 +70,14 @@ class AutomationBattleCafe
         const autoFarmButton =
             Automation.Menu.addAutomationButton("Auto Farm", this.Settings.FeatureEnabled, autoFarmTooltip, battleCafeContainer, true);
         autoFarmButton.addEventListener("click", this.__internal__toggleBattleCafeFarm.bind(this), false);
+
+        // Add an on/off button for berry farming automation
+        const autoBerryTooltip = "Automatically farm EV berries for Battle Café sweets"
+                               + Automation.Menu.TooltipSeparator
+                               + "Plants Pomeg/Kelpsy/Qualot/Hondew/Grepa/Tamato until stock >= 50";
+        const autoBerryButton =
+            Automation.Menu.addAutomationButton("Auto Berry Farm", this.Settings.AutoBerryFarm, autoBerryTooltip, battleCafeContainer, true);
+        autoBerryButton.addEventListener("click", this.__internal__toggleBerryFarm.bind(this), false);
 
         // Add an on/off button to stop after pokedex completion
         const autoStopTooltip = "Automatically disables the Battle Café farming."
