@@ -96,7 +96,7 @@ class AutomationBattleCafe
         const autoBerryFarmTooltip = "Automatically farms berries needed for Battle Café."
                               + Automation.Menu.TooltipSeparator
                               + "Farms Pecha, Persim, Nanab, Mago, Magost, Watmel,\n"
-                              + "Pinap, Grepa, Roseli, and Kelpsy berries when enabled";
+                              + "Pinap, Grepa, Roseli, and Kelpsy berries when enabled.";
         const berryFarmButton =
             Automation.Menu.addAutomationButton("Auto Berry Farm", this.Settings.AutoBerryFarm, autoBerryFarmTooltip, battleCafeContainer);
         berryFarmButton.addEventListener("click", this.__internal__toggleBerryFarm.bind(this), false);
