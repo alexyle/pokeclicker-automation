@@ -311,15 +311,26 @@ class AutomationBattleCafe
      * @brief The Battle Café Auto Farm loop
      *
      * It will automatically start battles with trainers in the Battle Café.
+     * Phase 1: Farm berries to catch all Alcremie variants at least once
+     * Phase 2: Farm to get all Alcremie variants with Pokerus (50+ captures each)
      */
     static __internal__battleCafeFarmLoop()
     {
-        // Check if we should stop based on pokedex completion
-        if ((Automation.Utils.LocalStorage.getValue(this.Settings.StopOnPokedex) === "true")
-            && this.__internal__isPokedexCompleted())
+        // Check if all pokemon have Pokerus (Phase 2 complete)
+        if (this.__internal__areAllPokerusComplete())
         {
             Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
-            Automation.Notifications.sendNotif("All Alcremie variants caught!", "Battle Café");
+            Automation.Notifications.sendNotif("All Alcremie variants have Pokerus!", "Battle Café");
+            return;
+        }
+
+        // Check if we should stop based on pokedex completion (Phase 1 complete but not Phase 2)
+        if ((Automation.Utils.LocalStorage.getValue(this.Settings.StopOnPokedex) === "true")
+            && this.__internal__isPokedexCompleted()
+            && !this.__internal__areAllPokerusComplete())
+        {
+            Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
+            Automation.Notifications.sendNotif("All Alcremie variants caught! To get Pokerus, re-enable the farming.", "Battle Café");
             return;
         }
 
@@ -372,4 +383,187 @@ class AutomationBattleCafe
 
         return true;
     }
+
+    /**
+     * @brief Checks if all Alcremie variants have been caught 50+ times (have Pokerus)
+     *
+     * @returns True if all variants have Pokerus, false otherwise
+     */
+    static __internal__areAllPokerusComplete()
+    {
+        const POKERUS_CAPTURE_THRESHOLD = 50;
+
+        // Check Milcery (Cheesy)
+        const milceryName = "Milcery (Cheesy)";
+        const milceryId = pokemonMap[milceryName].id;
+        if (App.game.statistics.pokemonCaptured[milceryId]() < POKERUS_CAPTURE_THRESHOLD)
+        {
+            return false;
+        }
+
+        // Check all Alcremie variants in all sweets
+        for (const sweetIndex in BattleCafeController.evolutions)
+        {
+            const sweetData = BattleCafeController.evolutions[sweetIndex];
+            for (const rewardIndex in sweetData)
+            {
+                const pokemonName = sweetData[rewardIndex].name;
+                const pokemonId = pokemonMap[pokemonName].id;
+                if (App.game.statistics.pokemonCaptured[pokemonId]() < POKERUS_CAPTURE_THRESHOLD)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @brief Toggles the 'Auto Berry Farm' feature
+     *
+     * If enabled, will automatically request the Farming automation to plant Battle Café berries.
+     * If disabled, will stop requesting berries.
+     *
+     * @param enable: [Optional] If a boolean is passed, it will be used to set the right state.
+     *                Otherwise, the local storage value will be used
+     */
+    static __internal__toggleBerryFarm(enable)
+    {
+        // If we got the click event, use the button status
+        if ((enable !== true) && (enable !== false))
+        {
+            enable = (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBerryFarm) === "true");
+        }
+
+        if (enable)
+        {
+            // Check if farming is available
+            if (!App.game.farming.canAccess())
+            {
+                Automation.Notifications.sendWarningNotif("Farm not yet unlocked!", "Battle Café");
+                Automation.Menu.forceAutomationState(this.Settings.AutoBerryFarm, false);
+                return;
+            }
+
+            // Check if farming automation is enabled
+            if (Automation.Utils.LocalStorage.getValue(Automation.Farm.Settings.FeatureEnabled) !== "true")
+            {
+                Automation.Notifications.sendWarningNotif("Please enable Farming automation first!", "Battle Café");
+                Automation.Menu.forceAutomationState(this.Settings.AutoBerryFarm, false);
+                return;
+            }
+
+            // Request the berries to be farmed
+            this.__internal__requestBattleCafeBerries();
+        }
+        else
+        {
+            // Stop requesting berries
+            this.__internal__stopRequestingBattleCafeBerries();
+        }
+    }
+
+    /**
+     * @brief Requests the Farming automation to plant Battle Café berries
+     */
+    static __internal__requestBattleCafeBerries()
+    {
+        if (!App.game.farming.canAccess())
+        {
+            return;
+        }
+
+        // Find the next berry that needs to be farmed
+        const berryToFarm = this.__internal__getNextBerryToFarm();
+
+        if (berryToFarm !== null)
+        {
+            // Request this berry to be planted
+            Automation.Farm.ForcePlantBerriesAsked = berryToFarm;
+
+            // Set up a watcher to rotate to the next berry when needed
+            if (!this.__internal__berryFarmWatcher)
+            {
+                this.__internal__berryFarmWatcher = setInterval(function()
+                {
+                    if (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBerryFarm) !== "true")
+                    {
+                        clearInterval(this.__internal__berryFarmWatcher);
+                        this.__internal__berryFarmWatcher = null;
+                        return;
+                    }
+
+                    const nextBerry = this.__internal__getNextBerryToFarm();
+                    if (nextBerry !== null && nextBerry !== Automation.Farm.ForcePlantBerriesAsked)
+                    {
+                        Automation.Farm.ForcePlantBerriesAsked = nextBerry;
+                    }
+                }.bind(this), 30000); // Check every 30 seconds
+            }
+
+            Automation.Notifications.sendNotif(
+                `Now farming ${BerryType[berryToFarm]} berries for Battle Café`,
+                "Battle Café"
+            );
+        }
+    }
+
+    /**
+     * @brief Stops requesting berries from the Farming automation
+     */
+    static __internal__stopRequestingBattleCafeBerries()
+    {
+        // Clear the forced berry request if it was one of our berries
+        if (Automation.Farm.ForcePlantBerriesAsked !== null
+            && this.__internal__battleCafeBerries.includes(Automation.Farm.ForcePlantBerriesAsked))
+        {
+            Automation.Farm.ForcePlantBerriesAsked = null;
+        }
+
+        // Clear the watcher
+        if (this.__internal__berryFarmWatcher)
+        {
+            clearInterval(this.__internal__berryFarmWatcher);
+            this.__internal__berryFarmWatcher = null;
+        }
+    }
+
+    /**
+     * @brief Determines which Battle Café berry needs to be farmed next
+     *
+     * @returns The BerryType to farm, or null if all berries are sufficiently stocked
+     */
+    static __internal__getNextBerryToFarm()
+    {
+        const minBerryCount = 50; // Keep at least 50 of each berry
+
+        // Find berries that are below the minimum threshold
+        const berriesNeeded = this.__internal__battleCafeBerries.filter(berryType => {
+            // Skip if berry is not unlocked yet
+            if (!App.game.farming.unlockedBerries[berryType]())
+            {
+                return false;
+            }
+
+            // Check if we have enough of this berry
+            const currentCount = App.game.farming.berryList[berryType]();
+            return currentCount < minBerryCount;
+        });
+
+        if (berriesNeeded.length === 0)
+        {
+            return null; // All berries are sufficiently stocked
+        }
+
+        // Return the berry with the lowest count
+        return berriesNeeded.reduce((minBerry, berry) => {
+            const currentCount = App.game.farming.berryList[berry]();
+            const minCount = App.game.farming.berryList[minBerry]();
+            return currentCount < minCount ? berry : minBerry;
+        });
+    }
+
+    static __internal__berryFarmWatcher = null;
+>>>>>>> 1c0c81a (feat: Add Battle Café berry farming toggle with two-phase completion system)
 }

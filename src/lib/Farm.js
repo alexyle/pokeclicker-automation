@@ -261,12 +261,12 @@ class AutomationFarm
                                     + "Enables automated Battle Café farming to obtain Alcremie variants\n"
                                     + "See: https://wiki.pokeclicker.com/#!Battle%20Café/";
         const autoBattleCafeButton = Automation.Menu.addLabeledAdvancedSettingsToggleButton("Auto farm Battle Café berries",
-                                                               this.Settings.AutoBattleCafeBerries,
+                                                               Automation.BattleCafe.Settings.FeatureEnabled,
                                                                autoBattleCafeTooltip,
                                                                farmingSettingPanel);
         autoBattleCafeButton.addEventListener("click", function()
                                       {
-                                           const enable = (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBattleCafeBerries) === "true");
+                                           const enable = (Automation.Utils.LocalStorage.getValue(Automation.BattleCafe.Settings.FeatureEnabled) === "true");
                                            Automation.BattleCafe.__internal__toggleBattleCafeFarm(enable);
                                       }.bind(this), false);
 
