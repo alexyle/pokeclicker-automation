@@ -337,15 +337,26 @@ class AutomationBattleCafe
      * @brief The Battle Café Auto Farm loop
      *
      * It will automatically start battles with trainers in the Battle Café.
+     * Phase 1: Farm berries to catch all Alcremie variants at least once
+     * Phase 2: Farm to get all Alcremie variants with Pokerus (50+ captures each)
      */
     static __internal__battleCafeFarmLoop()
     {
-        // Check if we should stop based on pokedex completion
-        if ((Automation.Utils.LocalStorage.getValue(this.Settings.StopOnPokedex) === "true")
-            && this.__internal__isPokedexCompleted())
+        // Check if all pokemon have Pokerus (Phase 2 complete)
+        if (this.__internal__areAllPokerusComplete())
         {
             Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
-            Automation.Notifications.sendNotif("All Alcremie variants caught!", "Battle Café");
+            Automation.Notifications.sendNotif("All Alcremie variants have Pokerus!", "Battle Café");
+            return;
+        }
+
+        // Check if we should stop based on pokedex completion (Phase 1 complete but not Phase 2)
+        if ((Automation.Utils.LocalStorage.getValue(this.Settings.StopOnPokedex) === "true")
+            && this.__internal__isPokedexCompleted()
+            && !this.__internal__areAllPokerusComplete())
+        {
+            Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
+            Automation.Notifications.sendNotif("All Alcremie variants caught! To get Pokerus, re-enable the farming.", "Battle Café");
             return;
         }
 
@@ -393,6 +404,41 @@ class AutomationBattleCafe
             if (!App.game.party.alreadyCaughtPokemonByName(pokemonName))
             {
                 return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @brief Checks if all Alcremie variants have been caught 50+ times (have Pokerus)
+     *
+     * @returns True if all variants have Pokerus, false otherwise
+     */
+    static __internal__areAllPokerusComplete()
+    {
+        const POKERUS_CAPTURE_THRESHOLD = 50;
+
+        // Check Milcery (Cheesy)
+        const milceryName = "Milcery (Cheesy)";
+        const milceryId = pokemonMap[milceryName].id;
+        if (App.game.statistics.pokemonCaptured[milceryId]() < POKERUS_CAPTURE_THRESHOLD)
+        {
+            return false;
+        }
+
+        // Check all Alcremie variants in all sweets
+        for (const sweetIndex in BattleCafeController.evolutions)
+        {
+            const sweetData = BattleCafeController.evolutions[sweetIndex];
+            for (const rewardIndex in sweetData)
+            {
+                const pokemonName = sweetData[rewardIndex].name;
+                const pokemonId = pokemonMap[pokemonName].id;
+                if (App.game.statistics.pokemonCaptured[pokemonId]() < POKERUS_CAPTURE_THRESHOLD)
+                {
+                    return false;
+                }
             }
         }
 

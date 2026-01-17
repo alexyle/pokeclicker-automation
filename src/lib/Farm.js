@@ -253,6 +253,21 @@ class AutomationFarm
                                            }
                                       }.bind(this), false);
 
+        // Auto farm Battle Café berries button
+        const autoBattleCafeTooltip = "Automatically farm berries from the Battle Café"
+                                    + Automation.Menu.TooltipSeparator
+                                    + "Enables automated Battle Café farming to obtain Alcremie variants\n"
+                                    + "See: https://wiki.pokeclicker.com/#!Battle%20Café/";
+        const autoBattleCafeButton = Automation.Menu.addLabeledAdvancedSettingsToggleButton("Auto farm Battle Café berries",
+                                                               Automation.BattleCafe.Settings.FeatureEnabled,
+                                                               autoBattleCafeTooltip,
+                                                               farmingSettingPanel);
+        autoBattleCafeButton.addEventListener("click", function()
+                                      {
+                                           const enable = (Automation.Utils.LocalStorage.getValue(Automation.BattleCafe.Settings.FeatureEnabled) === "true");
+                                           Automation.BattleCafe.__internal__toggleBattleCafeFarm(enable);
+                                      }.bind(this), false);
+
         // Selected berry drop-down list
         this.__internal__buildBerryDropdownList(farmingSettingPanel);
 
