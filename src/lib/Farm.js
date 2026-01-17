@@ -13,7 +13,8 @@ class AutomationFarm
                           HarvestLate: "Farming-HarvestLate",
                           OakItemLoadoutUpdate: "Farming-OakItemLoadoutUpdate",
                           SelectedBerryToPlant: "Farming-SelectedBerryToPlant",
-                          UseRichMulch: "Farming-UseRichMulch"
+                          UseRichMulch: "Farming-UseRichMulch",
+                          UsePasshoStrategy: "Farming-UsePasshoStrategy"
                       };
 
     // The berry type forced to plant by other features
@@ -216,18 +217,31 @@ class AutomationFarm
                                                                richMulchBeforeHarvestTooltip,
                                                                farmingSettingPanel);
 
-        // Disable the harvest late feature if the Focus on unlocks is enabled
+        // Use Passho berry strategy button
+        const passhoStrategyTooltip = "Enabling this setting will surround the selected berry with Passho berries to increase harvest rate."
+                                    + Automation.Menu.TooltipSeparator
+                                    + "This is useful for farming large quantities of berries.\n"
+                                    + "The selected berry will be planted in the center 4 spots,\n"
+                                    + "with Passho berries filling the remaining plots.";
+        const passhoStrategyButton = Automation.Menu.addLabeledAdvancedSettingsToggleButton("Use Passho berry farming strategy",
+                                                               this.Settings.UsePasshoStrategy,
+                                                               passhoStrategyTooltip,
+                                                               farmingSettingPanel);
+
+        // Disable the harvest late and passho strategy features if the Focus on unlocks is enabled
         const disableReason = "This settings is not considered when the\n"
                             + `'${unlockLabel}' setting is enabled`;
         if (Automation.Utils.LocalStorage.getValue(this.Settings.FocusOnUnlocks) === "true")
         {
             Automation.Menu.setButtonDisabledState(this.Settings.HarvestLate, true, disableReason);
+            Automation.Menu.setButtonDisabledState(this.Settings.UsePasshoStrategy, true, disableReason);
         }
         unlockButton.addEventListener("click", function()
                                       {
-                                           // Disable the HarvestLate feature when unlocks focus is enabled
+                                           // Disable the HarvestLate and UsePasshoStrategy features when unlocks focus is enabled
                                            const disableState = (Automation.Utils.LocalStorage.getValue(this.Settings.FocusOnUnlocks) === "true");
                                            Automation.Menu.setButtonDisabledState(this.Settings.HarvestLate, disableState, disableReason);
+                                           Automation.Menu.setButtonDisabledState(this.Settings.UsePasshoStrategy, disableState, disableReason);
 
                                            if (Automation.Utils.LocalStorage.getValue(this.Settings.FeatureEnabled) === "true")
                                            {
@@ -414,9 +428,20 @@ class AutomationFarm
         // Update the floating content panel if needed
         this.__internal__updateFloatingPanel();
 
-        // Otherwise, fallback to planting berries
+        // Check if Passho berry strategy should be used
+        const usePasshoStrategy = (Automation.Utils.LocalStorage.getValue(this.Settings.UsePasshoStrategy) === "true");
         const berryToPlant = this.ForcePlantBerriesAsked ?? parseInt(Automation.Utils.LocalStorage.getValue(this.Settings.SelectedBerryToPlant));
-        this.__internal__plantAllBerries(berryToPlant);
+
+        if (usePasshoStrategy && (this.ForcePlantBerriesAsked == null))
+        {
+            // Use Passho berry farming strategy
+            this.__internal__applyPasshoStrategy(berryToPlant);
+        }
+        else
+        {
+            // Otherwise, fallback to planting berries normally
+            this.__internal__plantAllBerries(berryToPlant);
+        }
 
         if (this.__internal__currentStrategy !== null)
         {
@@ -686,6 +711,86 @@ class AutomationFarm
                 this.__internal__sendNotif("Planted some " + berryName + " " + berryImage);
             }
         }
+    }
+
+    /**
+     * @brief Applies the Passho berry strategy to increase harvest rate for the given berry
+     *
+     * This will plant the target berry in the center 4 spots (6, 8, 16, 18) and surround them
+     * with Passho berries to increase the harvest rate through their aura effect.
+     *
+     * @param berryToPlant: The berry type to plant in the center
+     */
+    static __internal__applyPasshoStrategy(berryToPlant)
+    {
+        const richMulchEnabled = Automation.Utils.LocalStorage.getValue(this.Settings.UseRichMulch) === "true";
+
+        let berryLocations = [];
+        // Check if target berries are already planted
+        for (const [ index, plot ] of App.game.farming.plotList.entries())
+        {
+            if (plot.berry === berryToPlant)
+            {
+                // Harvest the berry with a little margin, so we are sure that the Passho aura is active
+                if ((plot.age - plot.berryData.growthTime[PlotStage.Bloom]) > 30)
+                {
+                    this.__internal__mulchAndHarvest(index, richMulchEnabled);
+                    this.__internal__harvestCount++;
+                }
+                else
+                {
+                    berryLocations.push(index);
+                }
+            }
+        }
+
+        let passhoLocations = [];
+
+        // If no target berries were found, plant some in the center 4 spots
+        if (berryLocations.length == 0)
+        {
+            berryLocations = [ 6, 8, 16, 18];
+            passhoLocations = App.game.farming.plotList.map((_, index) => index).filter(index => !berryLocations.includes(index));
+        }
+        else
+        {
+            // Calculate surrounding spots for Passho berries
+            for (const index of berryLocations)
+            {
+                const isLeftMost = (index % 5) == 0;
+                const isRightMost = (index % 5) == 4;
+
+                passhoLocations.push(index - 5);
+                passhoLocations.push(index + 5);
+
+                if (!isLeftMost)
+                {
+                    passhoLocations.push(index - 1);
+                    passhoLocations.push(index - 4);
+                    passhoLocations.push(index + 6);
+                }
+                if (!isRightMost)
+                {
+                    passhoLocations.push(index + 1);
+                    passhoLocations.push(index - 6);
+                    passhoLocations.push(index + 4);
+                }
+            }
+
+            // Remove any duplicates, or out of bound values
+            passhoLocations = passhoLocations.filter((value, index) => ((passhoLocations.indexOf(value) === index)
+                                                                        && (value >= 0) && (value < 25)));
+        }
+
+        // Configure the slots
+        const config = {};
+        config[berryToPlant] = berryLocations;
+        config[BerryType.Passho] = passhoLocations;
+        const step = {};
+        this.__internal__setSlotConfigStrategy(step, config);
+
+        // Run the strategy
+        step.action();
     }
 
     /**
