@@ -8,7 +8,6 @@ class AutomationFarm
 {
     static Settings = {
                           AutoCatchWanderers: "Farming-AutoCatchWanderers",
-                          AutoBattleCafeBerries: "Farming-AutoBattleCafeBerries",
                           FeatureEnabled: "Farming-Enabled",
                           FocusOnUnlocks: "Farming-FocusOnUnlocks",
                           HarvestLate: "Farming-HarvestLate",
@@ -31,7 +30,6 @@ class AutomationFarm
         if (initStep == Automation.InitSteps.BuildMenu)
         {
             Automation.Utils.LocalStorage.setDefaultValue(this.Settings.AutoCatchWanderers, true);
-            Automation.Utils.LocalStorage.setDefaultValue(this.Settings.AutoBattleCafeBerries, false);
             Automation.Utils.LocalStorage.setDefaultValue(this.Settings.HarvestLate, false);
             Automation.Utils.LocalStorage.setDefaultValue(this.Settings.UseRichMulch, false);
             Automation.Utils.LocalStorage.setDefaultValue(this.Settings.SelectedBerryToPlant, BerryType.Cheri);
@@ -261,12 +259,12 @@ class AutomationFarm
                                     + "Enables automated Battle Café farming to obtain Alcremie variants\n"
                                     + "See: https://wiki.pokeclicker.com/#!Battle%20Café/";
         const autoBattleCafeButton = Automation.Menu.addLabeledAdvancedSettingsToggleButton("Auto farm Battle Café berries",
-                                                               this.Settings.AutoBattleCafeBerries,
+                                                               Automation.BattleCafe.Settings.FeatureEnabled,
                                                                autoBattleCafeTooltip,
                                                                farmingSettingPanel);
         autoBattleCafeButton.addEventListener("click", function()
                                       {
-                                           const enable = (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBattleCafeBerries) === "true");
+                                           const enable = (Automation.Utils.LocalStorage.getValue(Automation.BattleCafe.Settings.FeatureEnabled) === "true");
                                            Automation.BattleCafe.__internal__toggleBattleCafeFarm(enable);
                                       }.bind(this), false);
 
