@@ -40,6 +40,7 @@ class AutomationBattleCafe
     static __internal__currentlyVisibleSweet = null;
     static __internal__caughtPokemonIndicators = new Map();
     static __internal__pokemonPokerusIndicators = new Map();
+    static __internal__battleButtonSelector = '#battleCafeModal button.btn-success';
 
     /**
      * @brief Builds the 'Battle Café' menu panel
@@ -59,7 +60,7 @@ class AutomationBattleCafe
         mainContainer.style.minWidth = "145px";
 
         // Add an on/off button for farming automation
-        const autoFarmTooltip = "Automatically battles trainers in the Battle Café"
+        const autoFarmTooltip = "Automatically battles trainers in the Battle Café."
                               + Automation.Menu.TooltipSeparator
                               + "Repeatedly fights trainers to farm Alcremie variants";
         const autoFarmButton =
@@ -67,7 +68,7 @@ class AutomationBattleCafe
         autoFarmButton.addEventListener("click", this.__internal__toggleBattleCafeFarm.bind(this), false);
 
         // Add an on/off button to stop after pokedex completion
-        const autoStopTooltip = "Automatically disables the Battle Café farming"
+        const autoStopTooltip = "Automatically disables the Battle Café farming."
                               + Automation.Menu.TooltipSeparator
                               + "once all Alcremie variants are caught";
         const buttonLabel =
@@ -295,7 +296,7 @@ class AutomationBattleCafe
             if (this.__internal__autoBattleCafeLoop === null)
             {
                 // Set auto-battle café loop
-                this.__internal__autoBattleCafeLoop = setInterval(this.__internal__battleCafeFarmLoop.bind(this), 50); // Runs every game tick
+                this.__internal__autoBattleCafeLoop = setInterval(this.__internal__battleCafeFarmLoop.bind(this), 200); // Refresh every 0.2s
             }
         }
         else
@@ -336,7 +337,7 @@ class AutomationBattleCafe
 
         // Try to start a new battle
         // Look for the battle button in the Battle Café modal
-        const battleButton = document.querySelector('#battleCafeModal button.btn-success');
+        const battleButton = document.querySelector(this.__internal__battleButtonSelector);
         if (battleButton && !battleButton.disabled)
         {
             battleButton.click();
@@ -352,7 +353,6 @@ class AutomationBattleCafe
     {
         // Check Milcery (Cheesy)
         const milceryName = "Milcery (Cheesy)";
-        const milceryId = pokemonMap[milceryName].id;
         if (!App.game.party.alreadyCaughtPokemonByName(milceryName))
         {
             return false;
