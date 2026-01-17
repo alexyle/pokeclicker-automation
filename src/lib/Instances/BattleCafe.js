@@ -3,6 +3,11 @@
  */
 class AutomationBattleCafe
 {
+    static Settings = {
+                          FeatureEnabled: "BattleCafe-FarmEnabled",
+                          StopOnPokedex: "BattleCafe-StopOnPokedex"
+                      };
+
     /**
      * @brief Initializes the Battle Café components
      *
@@ -12,6 +17,10 @@ class AutomationBattleCafe
     {
         if (initStep == Automation.InitSteps.BuildMenu)
         {
+            // Disable the feature by default
+            Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
+            Automation.Utils.LocalStorage.setDefaultValue(this.Settings.StopOnPokedex, false);
+
             this.__internal__buildMenu();
         }
         else if (initStep == Automation.InitSteps.Finalize)
@@ -25,11 +34,13 @@ class AutomationBattleCafe
     |***    Internal members, should never be used by other classes    ***|
     \*********************************************************************/
 
+    static __internal__autoBattleCafeLoop = null;
     static __internal__battleCafeInGameModal = null;
     static __internal__battleCafeSweetContainers = [];
     static __internal__currentlyVisibleSweet = null;
     static __internal__caughtPokemonIndicators = new Map();
     static __internal__pokemonPokerusIndicators = new Map();
+    static __internal__battleButtonSelector = '#battleCafeModal button.btn-success';
 
     /**
      * @brief Builds the 'Battle Café' menu panel
@@ -47,6 +58,24 @@ class AutomationBattleCafe
         const mainContainer = battleCafeContainer.parentElement;
         mainContainer.style.width = "unset";
         mainContainer.style.minWidth = "145px";
+
+        // Add an on/off button for farming automation
+        const autoFarmTooltip = "Automatically battles trainers in the Battle Café."
+                              + Automation.Menu.TooltipSeparator
+                              + "Repeatedly fights trainers to farm Alcremie variants";
+        const autoFarmButton =
+            Automation.Menu.addAutomationButton("Auto Farm", this.Settings.FeatureEnabled, autoFarmTooltip, battleCafeContainer, true);
+        autoFarmButton.addEventListener("click", this.__internal__toggleBattleCafeFarm.bind(this), false);
+
+        // Add an on/off button to stop after pokedex completion
+        const autoStopTooltip = "Automatically disables the Battle Café farming."
+                              + Automation.Menu.TooltipSeparator
+                              + "once all Alcremie variants are caught";
+        const buttonLabel =
+            'Stop on <span id="automation-battlecafe-pokedex-img"><img src="assets/images/pokeball/Pokeball.svg" height="17px"></span> :';
+        Automation.Menu.addAutomationButton(buttonLabel, this.Settings.StopOnPokedex, autoStopTooltip, battleCafeContainer);
+
+        battleCafeContainer.appendChild(document.createElement("br"));
 
         this.__internal__addInfo(null, -1, battleCafeContainer);
 
@@ -242,5 +271,105 @@ class AutomationBattleCafe
             internalPokerusData.container.style.paddingLeft = (internalPokerusData.container.innerHTML == "") ? "0px" : "3px";
             internalPokerusData.currentStatus = pokerusStatus;
         }
+    }
+
+    /**
+     * @brief Toggles the 'Battle Café Farm' feature
+     *
+     * If the feature was enabled and it's toggled to disabled, the loop will be stopped.
+     * If the feature was disabled and it's toggled to enabled, the loop will be started.
+     *
+     * @param enable: [Optional] If a boolean is passed, it will be used to set the right state.
+     *                Otherwise, the local storage value will be used
+     */
+    static __internal__toggleBattleCafeFarm(enable)
+    {
+        // If we got the click event, use the button status
+        if ((enable !== true) && (enable !== false))
+        {
+            enable = (Automation.Utils.LocalStorage.getValue(this.Settings.FeatureEnabled) === "true");
+        }
+
+        if (enable)
+        {
+            // Only set a loop if there is none active
+            if (this.__internal__autoBattleCafeLoop === null)
+            {
+                // Set auto-battle café loop
+                this.__internal__autoBattleCafeLoop = setInterval(this.__internal__battleCafeFarmLoop.bind(this), 200); // Refresh every 0.2s
+            }
+        }
+        else
+        {
+            // Unregister the loop
+            clearInterval(this.__internal__autoBattleCafeLoop);
+            this.__internal__autoBattleCafeLoop = null;
+        }
+    }
+
+    /**
+     * @brief The Battle Café Auto Farm loop
+     *
+     * It will automatically start battles with trainers in the Battle Café.
+     */
+    static __internal__battleCafeFarmLoop()
+    {
+        // Check if we should stop based on pokedex completion
+        if ((Automation.Utils.LocalStorage.getValue(this.Settings.StopOnPokedex) === "true")
+            && this.__internal__isPokedexCompleted())
+        {
+            Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
+            Automation.Notifications.sendNotif("All Alcremie variants caught!", "Battle Café");
+            return;
+        }
+
+        // Check if the Battle Café modal is visible
+        if (!this.__internal__battleCafeInGameModal.classList.contains("show"))
+        {
+            return;
+        }
+
+        // Check if we're currently in a battle
+        if (App.game.gameState === GameConstants.GameState.trainer)
+        {
+            return;
+        }
+
+        // Try to start a new battle
+        // Look for the battle button in the Battle Café modal
+        const battleButton = document.querySelector(this.__internal__battleButtonSelector);
+        if (battleButton && !battleButton.disabled)
+        {
+            battleButton.click();
+        }
+    }
+
+    /**
+     * @brief Checks if all Alcremie variants have been caught
+     *
+     * @returns True if all variants are caught, false otherwise
+     */
+    static __internal__isPokedexCompleted()
+    {
+        // Check Milcery (Cheesy)
+        const milceryName = "Milcery (Cheesy)";
+        if (!App.game.party.alreadyCaughtPokemonByName(milceryName))
+        {
+            return false;
+        }
+
+        // Check all Alcremie variants
+        const selectedSweet = BattleCafeController.selectedSweet();
+        const currentRewards = BattleCafeController.evolutions[selectedSweet];
+        for (const rewardIndex in currentRewards)
+        {
+            const pokemonName = currentRewards[rewardIndex].name;
+            if (!App.game.party.alreadyCaughtPokemonByName(pokemonName))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
