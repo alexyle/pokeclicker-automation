@@ -5,8 +5,7 @@ class AutomationBattleCafe
 {
     static Settings = {
                           FeatureEnabled: "BattleCafe-FarmEnabled",
-                          StopOnPokedex: "BattleCafe-StopOnPokedex",
-                          AutoBerryFarm: "BattleCafe-AutoBerryFarm"
+                          StopOnPokedex: "BattleCafe-StopOnPokedex"
                       };
 
     /**
@@ -21,7 +20,6 @@ class AutomationBattleCafe
             // Disable the feature by default
             Automation.Menu.forceAutomationState(this.Settings.FeatureEnabled, false);
             Automation.Utils.LocalStorage.setDefaultValue(this.Settings.StopOnPokedex, false);
-            Automation.Utils.LocalStorage.setDefaultValue(this.Settings.AutoBerryFarm, false);
 
             this.__internal__buildMenu();
         }
@@ -43,21 +41,6 @@ class AutomationBattleCafe
     static __internal__caughtPokemonIndicators = new Map();
     static __internal__pokemonPokerusIndicators = new Map();
     static __internal__battleButtonSelector = '#battleCafeModal button.btn-success';
-
-    // Berry requirements for each sweet type (based on PokéClicker Battle Café mechanics)
-    // These are the most commonly needed berries for Battle Café dishes
-    static __internal__battleCafeBerries = [
-        BerryType.Pecha,    // Used in Berry Sweet dishes
-        BerryType.Persim,   // Used in Berry Sweet dishes
-        BerryType.Nanab,    // Used in Strawberry and Berry Sweet dishes
-        BerryType.Mago,     // Used in Strawberry and Love Sweet dishes
-        BerryType.Magost,   // Used in Strawberry Sweet dishes
-        BerryType.Watmel,   // Used in Strawberry Sweet dishes
-        BerryType.Pinap,    // Used in Star Sweet dishes
-        BerryType.Grepa,    // Used in Clover Sweet dishes
-        BerryType.Roseli,   // Used in Flower Sweet dishes
-        BerryType.Kelpsy    // Used in Ribbon Sweet dishes
-    ];
 
     /**
      * @brief Builds the 'Battle Café' menu panel
@@ -91,15 +74,6 @@ class AutomationBattleCafe
         const buttonLabel =
             'Stop on <span id="automation-battlecafe-pokedex-img"><img src="assets/images/pokeball/Pokeball.svg" height="17px"></span> :';
         Automation.Menu.addAutomationButton(buttonLabel, this.Settings.StopOnPokedex, autoStopTooltip, battleCafeContainer);
-
-        // Add an on/off button for automatic berry farming
-        const autoBerryFarmTooltip = "Automatically farms berries needed for Battle Café."
-                              + Automation.Menu.TooltipSeparator
-                              + "Farms Pecha, Persim, Nanab, Mago, Magost, Watmel,\n"
-                              + "Pinap, Grepa, Roseli, and Kelpsy berries when enabled.";
-        const berryFarmButton =
-            Automation.Menu.addAutomationButton("Auto Berry Farm", this.Settings.AutoBerryFarm, autoBerryFarmTooltip, battleCafeContainer);
-        berryFarmButton.addEventListener("click", this.__internal__toggleBerryFarm.bind(this), false);
 
         battleCafeContainer.appendChild(document.createElement("br"));
 
@@ -398,151 +372,4 @@ class AutomationBattleCafe
 
         return true;
     }
-
-    /**
-     * @brief Toggles the 'Auto Berry Farm' feature
-     *
-     * If enabled, will automatically request the Farming automation to plant Battle Café berries.
-     * If disabled, will stop requesting berries.
-     *
-     * @param enable: [Optional] If a boolean is passed, it will be used to set the right state.
-     *                Otherwise, the local storage value will be used
-     */
-    static __internal__toggleBerryFarm(enable)
-    {
-        // If we got the click event, use the button status
-        if ((enable !== true) && (enable !== false))
-        {
-            enable = (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBerryFarm) === "true");
-        }
-
-        if (enable)
-        {
-            // Check if farming is available
-            if (!App.game.farming.canAccess())
-            {
-                Automation.Notifications.sendWarningNotif("Farm not yet unlocked!", "Battle Café");
-                Automation.Menu.forceAutomationState(this.Settings.AutoBerryFarm, false);
-                return;
-            }
-
-            // Check if farming automation is enabled
-            if (Automation.Utils.LocalStorage.getValue(Automation.Farm.Settings.FeatureEnabled) !== "true")
-            {
-                Automation.Notifications.sendWarningNotif("Please enable Farming automation first!", "Battle Café");
-                Automation.Menu.forceAutomationState(this.Settings.AutoBerryFarm, false);
-                return;
-            }
-
-            // Request the berries to be farmed
-            this.__internal__requestBattleCafeBerries();
-        }
-        else
-        {
-            // Stop requesting berries
-            this.__internal__stopRequestingBattleCafeBerries();
-        }
-    }
-
-    /**
-     * @brief Requests the Farming automation to plant Battle Café berries
-     */
-    static __internal__requestBattleCafeBerries()
-    {
-        if (!App.game.farming.canAccess())
-        {
-            return;
-        }
-
-        // Find the next berry that needs to be farmed
-        const berryToFarm = this.__internal__getNextBerryToFarm();
-        
-        if (berryToFarm !== null)
-        {
-            // Request this berry to be planted
-            Automation.Farm.ForcePlantBerriesAsked = berryToFarm;
-            
-            // Set up a watcher to rotate to the next berry when needed
-            if (!this.__internal__berryFarmWatcher)
-            {
-                this.__internal__berryFarmWatcher = setInterval(function()
-                {
-                    if (Automation.Utils.LocalStorage.getValue(this.Settings.AutoBerryFarm) !== "true")
-                    {
-                        clearInterval(this.__internal__berryFarmWatcher);
-                        this.__internal__berryFarmWatcher = null;
-                        return;
-                    }
-
-                    const nextBerry = this.__internal__getNextBerryToFarm();
-                    if (nextBerry !== null && nextBerry !== Automation.Farm.ForcePlantBerriesAsked)
-                    {
-                        Automation.Farm.ForcePlantBerriesAsked = nextBerry;
-                    }
-                }.bind(this), 30000); // Check every 30 seconds
-            }
-
-            Automation.Notifications.sendNotif(
-                `Now farming ${BerryType[berryToFarm]} berries for Battle Café`,
-                "Battle Café"
-            );
-        }
-    }
-
-    /**
-     * @brief Stops requesting berries from the Farming automation
-     */
-    static __internal__stopRequestingBattleCafeBerries()
-    {
-        // Clear the forced berry request if it was one of our berries
-        if (Automation.Farm.ForcePlantBerriesAsked !== null 
-            && this.__internal__battleCafeBerries.includes(Automation.Farm.ForcePlantBerriesAsked))
-        {
-            Automation.Farm.ForcePlantBerriesAsked = null;
-        }
-
-        // Clear the watcher
-        if (this.__internal__berryFarmWatcher)
-        {
-            clearInterval(this.__internal__berryFarmWatcher);
-            this.__internal__berryFarmWatcher = null;
-        }
-    }
-
-    /**
-     * @brief Determines which Battle Café berry needs to be farmed next
-     *
-     * @returns The BerryType to farm, or null if all berries are sufficiently stocked
-     */
-    static __internal__getNextBerryToFarm()
-    {
-        const minBerryCount = 50; // Keep at least 50 of each berry
-        
-        // Find berries that are below the minimum threshold
-        const berriesNeeded = this.__internal__battleCafeBerries.filter(berryType => {
-            // Skip if berry is not unlocked yet
-            if (!App.game.farming.unlockedBerries[berryType]())
-            {
-                return false;
-            }
-            
-            // Check if we have enough of this berry
-            const currentCount = App.game.farming.berryList[berryType]();
-            return currentCount < minBerryCount;
-        });
-
-        if (berriesNeeded.length === 0)
-        {
-            return null; // All berries are sufficiently stocked
-        }
-
-        // Return the berry with the lowest count
-        return berriesNeeded.reduce((minBerry, berry) => {
-            const currentCount = App.game.farming.berryList[berry]();
-            const minCount = App.game.farming.berryList[minBerry]();
-            return currentCount < minCount ? berry : minBerry;
-        });
-    }
-
-    static __internal__berryFarmWatcher = null;
 }
