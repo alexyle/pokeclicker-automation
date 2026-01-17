@@ -9,9 +9,9 @@ Last known compatible pokeclicker version: 0.10.24
 
 ### Installation
 
-[![Install with Tampermonkey](https://img.shields.io/badge/Install-Tampermonkey-00485B?style=for-the-badge)](https://raw.githubusercontent.com/Farigh/pokeclicker-automation/master/Automation-UserScript.js)
+[![Install with Tampermonkey](https://img.shields.io/badge/Install-Tampermonkey-00485B?style=for-the-badge)](https://raw.githubusercontent.com/Farigh/pokeclicker-automation/master/Automation-UserScript.js?raw=true)
 
-Simply click the badge above to install directly in Tampermonkey, or copy the link and create a new script in your userscript manager.
+Simply click the badge above to install directly in Tampermonkey, or copy the [direct link](https://raw.githubusercontent.com/Farigh/pokeclicker-automation/master/Automation-UserScript.js?raw=true) and paste it in your userscript manager.
 
 ### Documentation
 
