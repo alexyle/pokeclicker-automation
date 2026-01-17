@@ -5,7 +5,7 @@ class Automation
 {
     // Automation build/version identifier (shown in menu)
     // Updated automatically by: npm run update-version
-    static Version = "561fb08";
+    static Version = "26da0da";
 
     // Aliases on the other classes so every calls in the code can use the `Automation.<Alias>` form
     static BattleCafe = AutomationBattleCafe;
